@@ -1,0 +1,194 @@
+/* What information is contained in the following tables? What is the primary key for each table? Which tables can they join to? Hint: navigating a new SQL database involves both relying on documentation (such as the Northwind schema information above) and also using your intuition and exploration.
+categories
+customers
+employees
+products
+orders
+*/ 
+
+--Answer 
+/* Categories table consist of the categories of the products that are being sold. Customers table has the customer information, with the associated customer attributes. Employee table has the employee information. Products table has the details of the products being sold. It is almost like an inventory table for products. Orders table has the details of the orders being placed. 
+*/
+ 
+/*
+The Categories table joins back to the product table on the 'categoryid'. 'categoryid' is the foreign key in the products table. The customers table joins back to the orders table in the 'customerid'. The employee table joins back to the order table on the 'employeeid'. The product table joins back to the order details table on the 'productid'. The orders table joins to customers table on the 'customerid'; Orders table also joins back to the order details table in the 'orderid'. Finally the Orders table also joins back to Employee table on the "Employee Id"
+*/ 
+
+
+--1. What categories of products are sold in this database?
+select distinct(categoryname) from categories;
+--Result 
+    /* 
+    Beverages
+    Condiments
+    Confections
+    Dairy Products
+    Grains/Cereals
+    Meat/Poultry
+    Produce
+    Seafood
+*/ 
+
+--2. How many products per category does the catalog contain?
+select distinct  c.categoryname, count(productid) as 'Count of Products Under the Category' from  
+categories c left join products p 
+on c.categoryid = p.categoryid 
+group by c.categoryname
+order by count(productid) desc;
+--Result 
+/*
+        Confections      13
+        Beverages       12
+        Condiments      12
+        Seafood     12
+        Dairy Products  10
+        Grains/Cereals   7
+        Meat/Poultry        6
+        Produce     5 
+*/
+
+--3. Let's focus only on products that have not been discontinued => how many products per category?
+select distinct c.categoryname, count(productid) as 'Count of Products Under the Category' from  
+categories c left join products p 
+on c.categoryid = p.categoryid 
+where CAST(p.discontinued as INT) = 0
+group by c.categoryname
+order by count(productid) desc; 
+
+--Result 
+/* 
+    Confections 13
+    Seafood 12
+    Condiments  11
+    Dairy Products  10
+    Beverages   9
+    Grains/Cereals  6
+    Produce 4
+    Meat/Poultry    2
+*/ 
+
+--4. What are the most expensive five products (not discontinued)?
+select * from products
+where CAST(discontinued AS INT) =  0 
+order by CAST(unitprice as REAL) desc 
+limit 5; 
+--Result 
+/*
+38	Côte de Blaye	18	1	12 - 75 cl bottles	263.5	17	0	15	0
+20	Sir Rodney's Marmalade	8	3	30 gift boxes	81	40	0	0	0
+18	Carnarvon Tigers	7	8	16 kg pkg.	62.5	42	0	0	0
+59	Raclette Courdavault	28	4	5 kg pkg.	55	79	0	0	0
+51	Manjimup Dried Apples	24	7	50 - 300 g pkgs.	53	20	0	10	0
+*/ 
+
+--5. How many units of each of these five products are there in stock?
+
+select productname, unitsinstock from products
+where discontinued =  0 
+order by CAST(unitprice as REAL) desc 
+limit 5; 
+
+--Result 
+/* 
+Côte de Blaye	17
+Sir Rodney's Marmalade	40
+Carnarvon Tigers	42
+Raclette Courdavault	79
+Manjimup Dried Apples	20
+*/ 
+
+--6. How many orders are there in total?
+select count(distinct(orderid)) from orders;
+--Result
+    --830
+
+--7. Which country is receiving the most orders?
+select shipcountry, count(*) 
+from orders
+group by shipcountry 
+order by count(*) desc; 
+
+--Result 
+/* 
+Germany 122
+USA 122
+*/ 
+
+--8. Which country is receiving the least?
+select shipcountry, count(*) 
+from orders
+group by shipcountry 
+order by count(*) asc; 
+
+--Result 
+--Norway - 6 
+
+--9. What customer is submitting the highest number of orders?
+select distinct c.customerid, count(o.orderid) as Order_Count from 
+orders o left join customers c 
+on o.customerid = c.customerid 
+group by c.customerid
+order by Order_Count desc; 
+
+--Result 
+--SAVEA 31
+
+--10. What is the average freight weight per order, by customer?
+select orderid, customerid, AVG(CAST(freight as REAL))
+from orders 
+group by orderid, customerid;
+
+--11. What are all unique cities that customers are located in that begin with R?
+select distinct(city) from customers
+where city like 'R%';
+
+--Result 
+/* 
+Rio de Janeiro
+Reggio Emilia
+Reims
+Resende
+*/ 
+
+--12. How many countries are customers located in that are not the UK or the US? Can you use LIKE? Why or why not?
+select count(distinct(country))  from customers 
+where ((country  NOT like  'USA%') AND (country  NOT like  'UK%')); 
+--Result -- 19 
+--There are multiple ways to approach this problem.I have used like, but we can also use NOT IN condition in some query languages 
+
+--13. How many customers are in each country (not including the UK or the US)?
+select count(distinct(customerid))  from customers 
+where ((country  NOT like  'USA%') AND (country  NOT like  'UK%')); 
+--71 
+
+--14. Which employees have less than 100 total orders (from the orders table)? 
+-- Please include their titleofcourtesy, firstname, and lastname
+select distinct e.employeeid as Employee_Id, 
+e.titleofcourtesy as Title_of_Courtesy, 
+e.firstname as First_Name, 
+e.lastname as Last_Name,
+count(o.orderid) as Order_count 
+from orders o 
+left join employees e 
+on o.employeeid = e.employeeid 
+group by e.employeeid, e.titleofcourtesy, e.firstname, e.lastname
+having count(o.orderid) < 100; 
+
+--Result 
+/* 
+2   Dr. Andrew  Fuller  96
+5   Mr. Steven  Buchanan    42
+6   Mr. Michael Suyama  67
+7   Mr. Robert  King    72
+9   Ms. Anne    Dodsworth   43
+*/ 
+-- Alternate Approach using the || Operator
+select distinct e.employeeid as Employee_Id, 
+e.titleofcourtesy ||  e.firstname || e.lastname as C_Name, 
+count(o.orderid) as Order_count 
+from orders o 
+left join employees e 
+on o.employeeid = e.employeeid 
+group by C_Name
+having count(o.orderid) < 100
+
